@@ -2,15 +2,30 @@
 #define CACULATE_H
 
 #include <QObject>
+#include <QTime>
+#include <QtGlobal>
+#include <QStringList>
+#include <mainwindow.h>
 
-class Caculate : public QObject
+class Calculate : public QObject
 {
     Q_OBJECT
+
 public:
-    explicit Caculate(QObject *parent = nullptr);
+    explicit Calculate(QObject *parent = nullptr);
+    int getRandomNumber(QString &lineBuffer,int sides,int throwTimes);
+    bool judgeDiceResult(int number,int threshold);
+
+
+
+
+
 
 signals:
 
+
 };
 
-#endif // CACULATE_H
+
+#endif
+
