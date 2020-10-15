@@ -9,11 +9,9 @@ Calculate::Calculate(QObject *parent) : QObject(parent)
 
 
 }
-int Calculate :: getRandomNumber(QString &lineBuffer,int sides=6,int throwTimes=1 ){
+int Calculate :: getRandomNumber(QString &lineBuffer,int sides=6,int throwTimes=1){
     //qsrand(QTime(0,0,0,000).secsTo(QTime::currentTime()));
     int number=0;
-    lineBuffer += "掷出了";
-
     for(int i=0;i<throwTimes;i++){
         number += qrand()% sides +1;
         lineBuffer+=QString::number(number)+",";
