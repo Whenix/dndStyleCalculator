@@ -585,14 +585,14 @@ p, li { white-space: pre-wrap; }
      </property>
      <property name="font">
       <font>
-       <pointsize>20</pointsize>
+       <pointsize>13</pointsize>
        <weight>75</weight>
        <bold>true</bold>
        <underline>false</underline>
       </font>
      </property>
      <property name="text">
-      <string>正常/阵亡</string>
+      <string>无特殊记录</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -1815,7 +1815,16 @@ p, li { white-space: pre-wrap; }
     <addaction name="separator"/>
     <addaction name="action_2"/>
    </widget>
+   <widget class="QMenu" name="menuAuthor_Youngs">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="title">
+     <string>Author @Youngs Alpha v0.84</string>
+    </property>
+   </widget>
    <addaction name="menu"/>
+   <addaction name="menuAuthor_Youngs"/>
   </widget>
   <action name="actionUndo">
    <property name="text">

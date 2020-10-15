@@ -18,7 +18,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     calculate.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    todolist.cpp
 
 HEADERS += \
     calculate.h \

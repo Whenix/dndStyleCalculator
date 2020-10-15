@@ -16,6 +16,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     currentActCharacter =0;
     currentActEnemy = 0;
     currentActionTimes=0;
+    totalPlayTimes = "1";
 
 }
 
@@ -112,6 +113,10 @@ void MainWindow:: loadBattleDetail(){
     //*     以后写sk[n]exprdcd dicide 决定具体是哪一个表达的表达式
     //*     combox拉出来的技能列表可以依据类型来设置一个图标
     //*
+
+    //清空
+    skillComboxInfo.clear();
+    skillDescMap.clear();
 
     QRegularExpression rx_skillName("\\d+name\\b");
     QRegularExpression rx_skillExpr("\\d+expr\\b");
@@ -384,6 +389,8 @@ void MainWindow::on_action_loadFile_triggered()
     enemyList = newEnemyList;
 
     playFilePath = QFileDialog::getOpenFileName(this,"选择剧本文件","","所有文件(*.*) ;; XML文件 (*.xml)");
+    ui->textBrowser_history->clear();
+
     setPlayFileXML();
 
 }
@@ -578,62 +585,6 @@ void MainWindow::on_tableWidget_enemyInfo_itemClicked(QTableWidgetItem *item)
     }
 }
 
-
-//更新tablewidget
-//void MainWindow::updateCharacterBoard(int characterIndex){
-//    ui->tableWidget_characterInfo->clear();
-//    currentActCharacter = characterIndex;
-//    if(characterList.length()==0){
-//        qDebug() << "玩家信息列表写入失败";
-//        return;
-//    }
-
-//    //遍历property写入
-//    QMap<QString,QVariant> propertyBuffer = characterList[characterIndex].property;
-//    QMap<QString,QVariant>::Iterator it = propertyBuffer.begin(),itend = propertyBuffer.end();
-
-
-//    for (int i=0;it != itend; it++,i++){
-//        ui->tableWidget_characterInfo->setVerticalHeaderItem(
-//                    i,new QTableWidgetItem(it.key()));
-
-//        ui->tableWidget_characterInfo->setItem(
-//                    i,0,new QTableWidgetItem(it.value().toString()));
-
-//        // qDebug() << it.key();
-//        // qDebug() << it.value();
-//    }
-//    ui->tableWidget_characterInfo->setHorizontalHeaderItem(0,new QTableWidgetItem("value"+QString::number(currentActCharacter)));
-//    qDebug() << "玩家信息列表写入成功！";
-//}
-
-////更新敌对单位的tablewidget
-//void MainWindow::updateEnemyBoard(int enemyIndex){
-//    ui->tableWidget_enemyInfo->clear();
-//    currentActEnemy = enemyIndex;
-//    if(enemyList.length()==0){
-//        qDebug() << "敌对单位信息列表写入失败";
-//        return;
-//    }
-
-//    //遍历property写入
-//    QMap<QString,QVariant> propertyBuffer = enemyList[enemyIndex].property;
-//    QMap<QString,QVariant>::Iterator it = propertyBuffer.begin(),itend = propertyBuffer.end();
-
-
-//    for (int i=0;it != itend; it++,i++){
-//        ui->tableWidget_enemyInfo->setVerticalHeaderItem(
-//                    i,new QTableWidgetItem(it.key()));
-
-//        ui->tableWidget_enemyInfo->setItem(
-//                    i,0,new QTableWidgetItem(it.value().toString()));
-
-//        // qDebug() << it.key();
-//        // qDebug() << it.value();
-//    }
-//    ui->tableWidget_enemyInfo->setHorizontalHeaderItem(0,new QTableWidgetItem("value"+QString::number(currentActEnemy)));
-
-//}
 
 void MainWindow::updateInfoBoard(QList<Character>& list,int index,QTableWidget *table){
     table->clear();
@@ -840,17 +791,29 @@ void MainWindow::setPlayFileXML(){
             eValueBuffer.append(playFileReader.readElementText());
             qDebug() <<  "信息写入" << eValueBuffer.last();
         }
+
+        //写入历史记录
+        else if(playFileReader.name()=="history"){
+            totalPlayTimes = playFileReader.attributes().value("times").toString();
+            historyInfoBuffer.append(playFileReader.readElementText());
+            historyAll.append(historyInfoBuffer.join("|"));
+            qDebug() << "读取历史游戏记录" ;
+        }
     }
 
 
     playFile.close();
 
     //发个更新信号呗
-    emit  updateInfoBoard(characterList,currentActCharacter,ui->tableWidget_characterInfo);
-    emit  updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
+    emit updateInfoBoard(characterList,currentActCharacter,ui->tableWidget_characterInfo);
+    emit updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
     emit updateLabelBoard();
     emit loadBattleDetail();
     emit setSwitchEnemySlider();
+    emit updateLastPlayHistoryBoard();
+
+    //历史游戏记录次数+1
+    totalPlayTimes = QString::number(totalPlayTimes.toInt()+1);
 
     //启用增加条目按钮
     ui->pushButton_addTableItem->setEnabled(true);
@@ -864,7 +827,11 @@ void MainWindow::savePlayFileXML(){
         playFilePath = "newPlayFile.xml";
     }
 
+
     QFile playFile(playFilePath);
+    playFile.resize(0);
+
+    historyAll.append(historyInfoBuffer.join("|")); //将这次游玩的历史记录全部压缩成一个stringapped到这个list里
 
 
     if (!playFile.open(QFile::ReadWrite | QFile::Text)){
@@ -956,12 +923,24 @@ void MainWindow::savePlayFileXML(){
 
     }
 
+    //保存历史记录 每一次的游玩是一个长string
+    for(int i =0 ; i< historyAll.length();i++){
+        writer.writeStartElement("history");
+        writer.writeAttribute("times",QString::number(i));
+        writer.writeCharacters("这是第"+QString::number(i)+"次游玩记录|");
+        writer.writeCharacters(historyAll.at(i));
+        writer.writeCharacters("|");
+        writer.writeEndElement(); //history
+    }
+
+    historyAll.clear();
 
     qDebug() << "保存成功！";
     writer.writeEndElement(); //root
     writer.writeEndDocument();
     playFile.close();
 
+    ui->textBrowser_history->append("大概保存成功了！");
 
 }
 #pragma endregion FileIO
@@ -1001,6 +980,20 @@ void MainWindow:: updateHistoryBoard(QString &infoBuffer){
     historyInfoBuffer.append(infoBuffer);
     ui->textBrowser_history->append(infoBuffer);
     infoBuffer.clear();
+}
+
+void MainWindow::updateLastPlayHistoryBoard(){
+
+     //是一个list 先join 然后再|分割 然后再逐个输出
+
+    historyInfoBuffer = historyInfoBuffer.join("|").split("|");
+    for(int i=0;i<historyInfoBuffer.length();i++){
+        ui->textBrowser_history->append(historyInfoBuffer.at(i));
+    }
+
+    //清空
+    historyInfoBuffer.clear();
+
 }
 #pragma endregion group_history
 
@@ -1247,5 +1240,34 @@ void MainWindow::on_lineEdit_customDiceSides_textChanged(const QString &arg)
 
 
 
+void MainWindow::update_changeTableItem(int row ,int col,QList<Character>& list,int index,QTableWidget* table){
+    if(row > table->rowCount() || row >= list[index].property.size()){
+        qDebug() <<"企图修改不存在的数据";
+        return;
+    }
+    //根据table里的内容，反向传递至list中
+    //获得内容
+    QVariant newContent = table->item(row,col)->text();
+    //找到表头
+    QString headerName = table->verticalHeaderItem(row)->text();
 
 
+    //查找list
+    list[index].property.find(headerName).value() = newContent;
+
+    qDebug() << "修改成功 新内容："<< newContent;
+    loadBattleDetail();
+
+}
+
+
+void MainWindow::on_tableWidget_characterInfo_cellChanged(int row, int column)
+{
+    update_changeTableItem(row,column,characterList,currentActCharacter,ui->tableWidget_characterInfo);
+}
+
+void MainWindow::on_tableWidget_enemyInfo_cellChanged(int row, int column)
+{
+    qDebug() << row;
+     update_changeTableItem(row,column,enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
+}

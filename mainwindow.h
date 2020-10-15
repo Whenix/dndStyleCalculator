@@ -42,6 +42,7 @@ class MainWindow : public QMainWindow
 
 public:
     //历史消息
+    QStringList historyAll;
     QStringList historyInfoBuffer;
     QString historyLineBuffer;
     QList<Character> characterList;
@@ -77,8 +78,8 @@ private slots:
 
     //更新记录面板
     void updateHistoryBoard(QString &infoBuffer);
-   // void updateCharacterBoard(int index);
-  //  void updateEnemyBoard(int index);
+    void updateLastPlayHistoryBoard();
+
     void updateInfoBoard(QList<Character>&,int,QTableWidget*);
     void updateLabelBoard();
     void updateLabelActionTimes(int);
@@ -87,6 +88,7 @@ private slots:
     //面板反向更新至数组中
     void update_tableItemDelete(QString key);
     void update_enemyTableItemDelete(QString key);
+    void update_changeTableItem(int,int,QList<Character>&,int,QTableWidget*);
 
     //骰子投掷区
     void on_anyJudgePushButton_clicked(int threshold,bool needJudgement);
@@ -175,6 +177,10 @@ private slots:
     void on_pushButton_destroyEnemy_clicked();
     void on_pushButton_deleteEnemyItem_clicked();
 
+    void on_tableWidget_characterInfo_cellChanged(int row, int column);
+
+    void on_tableWidget_enemyInfo_cellChanged(int row, int column);
+
 private:
     Ui::MainWindow *ui;
     int diceThrowTimes = 1;
@@ -184,6 +190,7 @@ private:
     QStringList playFileDataTemp;
     QIntValidator *validatorInt;
     int currentSelectTableRow;
+    QString totalPlayTimes;
 
 
 
