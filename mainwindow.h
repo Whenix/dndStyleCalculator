@@ -14,6 +14,8 @@
 #include <QFile>
 #include <QXmlStreamWriter>
 #include <QXmlStreamReader>
+#include <QTime>
+#include <QTimer>
 
 //角色构造
 struct Character{
@@ -41,6 +43,11 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
+
+
+
+
+
     //历史消息
     QStringList historyAll;
     QStringList historyInfoBuffer;
@@ -52,6 +59,26 @@ public:
     int currentActionTimes;
     QMap<QString,QString> skillDescMap;
     QMap<QString,QStringList> skillComboxInfo;
+    QString customExpression;
+    QStringList customExprQS;
+    int diceThrowTimes = 1;
+    int diceSides;
+    QString playFilePath;
+    QStringList playFileDataTemp;
+    QIntValidator *validatorInt;
+    int currentSelectTableRow;
+    QString totalPlayTimes;
+
+    int customCheckAttr;
+    int customThreshold;
+
+    double timeSpeed=1.0f;
+    bool needCheck;
+
+    //首次加载初始化
+    void on_MainWindow_timerInitialize();
+
+
 
     MainWindow(QWidget *parent = nullptr);
 
@@ -60,6 +87,14 @@ public:
 
 
 private slots:
+
+    //时间类
+    void updateTimeInfo();
+
+    //自定义检定
+    int exprDecodingGeneralMethod(QString);
+    void displayDiceNumber(int);
+
     //战斗！
     int attackGeneralMethod(QString expression);
     void onDamageTaken_character(int,bool);
@@ -79,50 +114,22 @@ private slots:
     //更新记录面板
     void updateHistoryBoard(QString &infoBuffer);
     void updateLastPlayHistoryBoard();
-
     void updateInfoBoard(QList<Character>&,int,QTableWidget*);
     void updateLabelBoard();
     void updateLabelActionTimes(int);
-
+    void updateLabelCustomExprInfo(QTableWidgetItem *);
+    void updateLabelJuggInfo();
+    void saySomething(QString words,bool update=false);
 
     //面板反向更新至数组中
     void update_tableItemDelete(QString key);
     void update_enemyTableItemDelete(QString key);
     void update_changeTableItem(int,int,QList<Character>&,int,QTableWidget*);
 
-    //骰子投掷区
-    void on_anyJudgePushButton_clicked(int threshold,bool needJudgement);
-    void on_pushButton_easy_clicked();
-    void on_pushButton_hard_clicked();
-    void on_pushButton_impossible_clicked();
-    void on_pushButton_zero_clicked();
-    void on_pushButton_general_clicked();
-    void on_pushButton_veryEasy_clicked();
-    void on_pushButton_getNumber_clicked();
-
-    void on_exactSlider_valueChanged();
-    void on_pushButton_addDThrow_clicked();
-    void on_pushButton_subtractThrow_clicked();
-    void on_checkBox_exactSwitch_stateChanged(int arg1);
-    void on_pushButton_timesReset_clicked();
-
-    //骰子参数区
-    void on_radioButton_d2_clicked();
-    void on_radioButton_d6_clicked();
-    void on_radioButton_d12_clicked();
-    void on_radioButton_d16_clicked();
-    void on_radioButton_d20_clicked();
-    void on_radioButton_d28_clicked();
-    void on_radioButton_d34_clicked();
-    void on_radioButton_d100_clicked();
-    void on_lineEdit_customDiceSides_textChanged(const QString &arg1);
 
     //菜单按钮动作区
     void on_action_loadFile_triggered();
     void on_action_saveFile_triggered();
-
-
-    void on_checkBox_noRecordHistory_clicked();
 
     void on_pushButton_toNextCharacter_clicked();
 
@@ -135,7 +142,7 @@ private slots:
 
     void on_pushButton_deleteTableHeader_clicked();
 
-    void on_tableWidget_characterInfo_itemClicked(QTableWidgetItem *item);
+    void on_tableWidget_characterInfo_itemClicked(QTableWidgetItem *);
 
 
 
@@ -181,20 +188,39 @@ private slots:
 
     void on_tableWidget_enemyInfo_cellChanged(int row, int column);
 
+    void on_lineEdit_customExprInput_textChanged(const QString &arg1);
+
+
+    void on_pushButton_executeCustomExpr_clicked();
+
+
+    void on_lineEdit_customExprInput_editingFinished();
+
+    void on_lineEdit_cunstomExprThreshold_textChanged(const QString &arg1);
+
+    void on_toolButton_custom_help_triggered(QAction *arg1);
+
+    void on_toolButton_custom_help_clicked();
+
+    void on_dial_timerFreqAdjust_sliderReleased();
+
+    void on_hSlider_timeSpeedQS_sliderReleased();
+
+    void on_lineEdit_timeSpeed_textEdited(const QString &arg1);
+
+    void on_pushButton_timerPause_clicked();
+
+    void on_pushButton_timerGo_clicked();
+
 private:
     Ui::MainWindow *ui;
-    int diceThrowTimes = 1;
-    int successThreshold;
-    int diceSides;
-    QString playFilePath;
-    QStringList playFileDataTemp;
-    QIntValidator *validatorInt;
-    int currentSelectTableRow;
-    QString totalPlayTimes;
 
-
-
-    void saySomething(QString words,bool update=false);
+    //时间类
+    QTimer *timer;
+    int updateFreq=1000;
+    double passedSeconds;
+    int passedDays;
+    double pauseSpeed=1.0f;
 
 signals:
     void historyUpdate(QString &infoBuffer);

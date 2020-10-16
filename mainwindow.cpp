@@ -4,14 +4,24 @@
 #include <qinputdialog.h>
 #include "QDebug"
 
-
+// 检测值和阈值得出大失败 失败 成功 大成功的功能
 MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    connect(this,SIGNAL(historyUpdate(QString)),ui->textBrowser_history,SLOT(updateHistoryBoard()));
+    on_MainWindow_timerInitialize();
+    ui->lineEdit_cunstomExprThreshold->setValidator(new QRegExpValidator(QRegExp("[0-9]+$")));
+    ui->lineEdit_timeSpeed->setValidator(new QRegExpValidator(QRegExp("[0-9]*[.][0-9]*")));
+    ui->lineEdit_customExprInput->setValidator(new QRegExpValidator(QRegExp("([\\+\\-d\\~]|[0-9])+$")));
+    // connect(this,SIGNAL(historyUpdate(QString)),ui->textBrowser_history,SLOT(updateHistoryBoard()));
+
+    //绑定：点击玩家信息表 -> 自定义公式区域中的信息更新
+    connect(ui->tableWidget_characterInfo,SIGNAL(itemClicked(QTableWidgetItem *)),this,SLOT(updateLabelCustomExprInfo(QTableWidgetItem*)));
+    //绑定：骰子数字更新后 -> 获得判定结果
+    connect(ui->diceNumberDisplayer,SIGNAL(textChanged()),this,SLOT(updateLabelJuggInfo()));
+
 
     diceThrowTimes = 1;
-    successThreshold = 50;
+    customThreshold = 50;
     diceSides = 6;
     currentActCharacter =0;
     currentActEnemy = 0;
@@ -26,9 +36,6 @@ MainWindow::~MainWindow()
 }
 
 /////////////////////////Protect My Dog Eye///////////////////////////////
-///////////////////////// 敌方面板区 ////////////////////////////////
-// 敌方面板区
-#pragma region enemyBoard
 
 
 void MainWindow::on_pushButton_addEnemyItem_clicked()
@@ -91,14 +98,9 @@ void MainWindow::setSwitchEnemySlider(){
     ui->horizontalSlider_quickSelect->setMaximum(enemyList.length()-1);
 
 }
-#pragma endregion enemyBoard
 
 
 /////////////////////////Protect My Dog Eye///////////////////////////////
-///////////////////////// BattleArea ////////////////////////////////
-// 战斗信息区域
-// group_battle
-#pragma region BattleArea
 
 void MainWindow:: updateLabelActionTimes(int times){
     currentActionTimes=times;
@@ -216,6 +218,8 @@ void MainWindow::loadCombox(){
 
 }
 
+
+
 //普通攻击通用方法
 int MainWindow::attackGeneralMethod(QString expression){
 
@@ -228,6 +232,7 @@ int MainWindow::attackGeneralMethod(QString expression){
     //定义伤害
     int damage=0;
     int coef=0,diceType=6,minDamage=0;
+
 
     //获取值
     tmpResult=rx_getCoef.match(expression);
@@ -247,8 +252,9 @@ int MainWindow::attackGeneralMethod(QString expression){
     }
     saySomething("打出了"+QString::number(coef)+"段攻击,");
     damage =Calculate().getRandomNumber(historyLineBuffer,diceType,coef)+minDamage;
-    ui->diceNumberDisplayer->setText(QString::number(damage));
-    ui->diceNumberDisplayer->setAlignment(Qt::AlignHCenter); //对齐
+    needCheck = false;
+    displayDiceNumber(damage);
+
 
 
     saySomething("造成了"+QString::number(damage)+"的伤害",true);
@@ -271,7 +277,6 @@ void MainWindow::on_pushButton_cSpecialAttack_clicked()
     currentActionTimes++;
     updateLabelActionTimes(currentActionTimes);
 }
-
 void MainWindow::on_pushButton_eSpecialAttack_clicked()
 {
     QString atkExprField = skillDescMap.find("e"+QString::number(currentActEnemy)+ui->comboBox_enemySpecial->currentText()).value();
@@ -368,16 +373,9 @@ void MainWindow::on_comboBox_characterSpecial_activated(const QString &arg1)
     //加载的时候就要默认是0号元素 如果元素空的话要禁用这一行函数
 }
 
-#pragma endregion BattleArea
-
 
 
 /////////////////////////Protect My Dog Eye///////////////////////////////
-///////////////////////// FileIO ////////////////////////////////
-// 文件流区
-// group_history
-#pragma region FileIO
-
 
 void MainWindow::on_action_loadFile_triggered()
 {
@@ -427,7 +425,7 @@ void MainWindow::on_pushButton_toPreCharacter_clicked()
     qDebug()<<currentActCharacter;
     updateLabelActionTimes(0);
 
-     updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
+    updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
     updateLabelBoard();
     loadCombox();
 
@@ -458,7 +456,7 @@ void MainWindow::on_pushButton_toPreEnemy_clicked()
     currentActEnemy = (++currentActEnemy) % enemyList.length();
     qDebug()<<currentActEnemy;
 
-     updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
+    updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
     updateLabelBoard();
     loadCombox();
 
@@ -470,7 +468,7 @@ void MainWindow::on_pushButton_toNextEnemy_clicked()
     currentActEnemy = (++currentActEnemy) % enemyList.length();
     qDebug()<<currentActEnemy;
 
-     updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
+    updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
     updateLabelBoard();
     loadCombox();
 }
@@ -541,9 +539,10 @@ void MainWindow::on_pushButton_addTableItem_clicked()
     qDebug()<<"list更新完成";
 
 }
-void MainWindow::on_tableWidget_characterInfo_itemClicked(QTableWidgetItem *item)
-{
 
+//点击玩家信息表
+void MainWindow::on_tableWidget_characterInfo_itemClicked(QTableWidgetItem *item)
+{  
     currentSelectTableRow =  item->row();
     if(characterList.length()!=0){
         ui->pushButton_deleteTableHeader->setEnabled(true);
@@ -555,7 +554,7 @@ void MainWindow::on_tableWidget_characterInfo_itemClicked(QTableWidgetItem *item
 void MainWindow::on_pushButton_addTableItemEnemy_clicked()
 {
     //获得输入元素
-    qDebug()<< "??";
+
     bool inputDone;
     QString item = QInputDialog::getText(this,"输入新的配对","格式如 键;值",QLineEdit::Normal,"",&inputDone);
     if(!inputDone) return;
@@ -943,23 +942,12 @@ void MainWindow::savePlayFileXML(){
     ui->textBrowser_history->append("大概保存成功了！");
 
 }
-#pragma endregion FileIO
-
-
 
 
 
 /////////////////////////Protect My Dog Eye///////////////////////////////
-///////////////////////// group_history ////////////////////////////////
-// 历史记录面板区
-// group_history
-#pragma region group_history
 
 
-void MainWindow::on_checkBox_noRecordHistory_clicked()
-{
-    ui->checkBox_noRecordHistory->setText("别点了 没用的");
-}
 
 void MainWindow::saySomething(QString words,bool updateImmediately){
 
@@ -984,7 +972,7 @@ void MainWindow:: updateHistoryBoard(QString &infoBuffer){
 
 void MainWindow::updateLastPlayHistoryBoard(){
 
-     //是一个list 先join 然后再|分割 然后再逐个输出
+    //是一个list 先join 然后再|分割 然后再逐个输出
 
     historyInfoBuffer = historyInfoBuffer.join("|").split("|");
     for(int i=0;i<historyInfoBuffer.length();i++){
@@ -995,246 +983,44 @@ void MainWindow::updateLastPlayHistoryBoard(){
     historyInfoBuffer.clear();
 
 }
-#pragma endregion group_history
-
-
-
-
-/////////////////////////Protect My Dog Eye///////////////////////////////
-///////////////////////// group_diceThrow ////////////////////////////////
-// 骰子信息区
-// group_diceThrow
-#pragma region group_diceThrow
-
-
-//开启具体数值控制判定
-void MainWindow::on_checkBox_exactSwitch_stateChanged(int arg)
-{
-    if(arg == 2)
-    {
-        ui->pushButton_general->setText("根据自定义数值判定");
-        successThreshold = ui->exactSlider->value();
-        ui->pushButton_veryEasy->setEnabled(false);
-        ui->pushButton_easy->setEnabled(false);
-        ui->pushButton_hard->setEnabled(false);
-        ui->pushButton_impossible->setEnabled(false);
-        ui->pushButton_zero->setEnabled(false);
-
-        saySomething("god启用了精确数值判定系统！",true);
-    }
-    else if(arg == 0)
-    {
-        ui->pushButton_general->setText("掷骰(一般情况)");
-
-        ui->pushButton_veryEasy->setEnabled(true);
-        ui->pushButton_easy->setEnabled(true);
-        ui->pushButton_hard->setEnabled(true);
-        ui->pushButton_impossible->setEnabled(true);
-        ui->pushButton_zero->setEnabled(true);
-
-        saySomething("god关闭了精确数值判定系统！",true);
-    }
-
-}
-
-//感觉滑动条来改变成功阈值
-void MainWindow::on_exactSlider_valueChanged()
-{
-    successThreshold = 100 - ui->exactSlider->value();
-    ui->label_thresholdValue->setText(QString::number((int)successThreshold));
-}
-
-//增加骰子丢的次数
-void MainWindow::on_pushButton_addDThrow_clicked()
-{
-    diceThrowTimes++;
-
-    ui->label_diceThrowTimes->setText("当前骰子连掷个数:"+QString::number(diceThrowTimes));
-
-}
-
-//减少骰子丢的次数
-void MainWindow::on_pushButton_subtractThrow_clicked()
-{
-    if(diceThrowTimes >1) diceThrowTimes--;
-    ui->label_diceThrowTimes->setText("当前骰子连掷个数:"+QString::number(diceThrowTimes));
-
-}
-
-//重置骰子丢的次数
-void MainWindow::on_pushButton_timesReset_clicked()
-{
-    diceThrowTimes = 1;
-    ui->label_diceThrowTimes->setText("当前骰子连掷个数:"+QString::number(diceThrowTimes));
-    saySomething("重置了骰子的连掷个数为 1",true);
-}
-
-//那几个按钮丢骰子
-void MainWindow::on_pushButton_veryEasy_clicked()
-{
-    on_anyJudgePushButton_clicked(10,true);
-}
-void MainWindow::on_pushButton_easy_clicked()
-{
-    on_anyJudgePushButton_clicked(30,true);
-}
-void MainWindow::on_pushButton_general_clicked()
-{
-    if(!ui->checkBox_exactSwitch->isChecked())
-        on_anyJudgePushButton_clicked(50,true);
-    else
-        on_anyJudgePushButton_clicked(successThreshold,true);
-}
-
-void MainWindow::on_pushButton_hard_clicked()
-{
-    on_anyJudgePushButton_clicked(70,true);
-}
-
-void MainWindow::on_pushButton_impossible_clicked()
-{
-    on_anyJudgePushButton_clicked(90,true);
-}
-
-void MainWindow::on_pushButton_zero_clicked()
-{
-    on_anyJudgePushButton_clicked(99,true);
-}
-
-//仅获得数字
-void MainWindow::on_pushButton_getNumber_clicked()
-{
-    on_anyJudgePushButton_clicked(successThreshold,false);
-    ui->label_judgeInfo->clear();
-}
-
-void MainWindow::on_anyJudgePushButton_clicked(int threshold,bool needJudgement){
-
-    successThreshold = threshold;
-    saySomething(ui->label_charcterName->text()+"掷出了");
-
-    //获得判定数字
-    int judgeNumber = Calculate().getRandomNumber(historyLineBuffer,diceSides,diceThrowTimes);
-    ui->diceNumberDisplayer->setText(QString::number(judgeNumber));
-    ui->diceNumberDisplayer->setAlignment(Qt::AlignHCenter); //对齐
-
-    //进行判断
-
-
-    if(needJudgement){
-
-
-        if(Calculate().judgeDiceResult(judgeNumber,successThreshold)){
-            ui->label_judgeInfo->setText("成功!");
-            ui->label_judgeInfo->setStyleSheet("color:green;");
-        }
-        else{
-            ui->label_judgeInfo->setText("失败!");
-            ui->label_judgeInfo->setStyleSheet("color:red;");
-        }
-
-        saySomething("进行了一次判定，");
-        saySomething("这次判定的阈值是"+QString::number(successThreshold)+",并且");
-        saySomething(ui->label_judgeInfo->text());
-    }
-
-    saySomething("",true);
-
-
-}
-
-#pragma endregion group_diceThrow
-
-
-
 
 
 
 /////////////////////////Protect My Dog Eye///////////////////////////////
-///////////////////////// group_diceType ////////////////////////////////
-// 骰子信息区
-// group_diceType
-#pragma region group_diceType
-
-void MainWindow::on_radioButton_d2_clicked()
-{
-    diceSides=2;
-}
-
-void MainWindow::on_radioButton_d6_clicked()
-{
-    diceSides=6;
-}
-
-void MainWindow::on_radioButton_d12_clicked()
-{
-    diceSides=12;
-}
-
-void MainWindow::on_radioButton_d16_clicked()
-{
-    diceSides=16;
-}
-
-void MainWindow::on_radioButton_d20_clicked()
-{
-    diceSides=20;
-}
-
-void MainWindow::on_radioButton_d28_clicked()
-{
-    diceSides=28;
-}
-
-void MainWindow::on_radioButton_d34_clicked()
-{
-    diceSides=34;
-}
-
-void MainWindow::on_radioButton_d100_clicked()
-{
-    diceSides=100;
-}
-
-void MainWindow::on_lineEdit_customDiceSides_textChanged(const QString &arg)
-{
-    validatorInt = new QIntValidator(1,99,this);
-    if( ui->radioButton_customSides->isChecked())
-    {
-        diceSides = arg.toInt();
+//更新判定面板的信息
+void MainWindow::updateLabelJuggInfo(){
+    if(!needCheck) {
+        needCheck = true;
+        return;
+    }
+    int number = ui->diceNumberDisplayer->toPlainText().toInt();
+    int result = Calculate().judgeDiceResult(number,customThreshold);
+    switch (result) {
+    case -1:{
+        ui->label_judgeInfo->setText("大失败!");
+        ui->label_judgeInfo->setStyleSheet("color:red;");
+        break;
+    }
+    case 0:{
+        ui->label_judgeInfo->setText("失败!");
+        ui->label_judgeInfo->setStyleSheet("color:red;");
+        break;}
+    case 1:{
+        ui->label_judgeInfo->setText("成功!");
+        ui->label_judgeInfo->setStyleSheet("color:green;");
+        break;}
+    case 2:{
+        ui->label_judgeInfo->setText("大成功!");
+        ui->label_judgeInfo->setStyleSheet("color:green;");
+        break;}
     }
 
 }
-
-#pragma endregion group_diceType
-
-
-
 
 
 
 
 //////////////////////////////Protect My Dog Eye///////////////////////////////
-/////////////////////////// group_diceType ////////////////////////////////
-//// 骰子信息区
-//// group_diceType
-//#pragma region group_diceType
-
-//#pragma endregion group_diceType
-
-/////
-
-//        QXmlStreamReader::TokenType type = playFileReader.readNext();
-//        if (type == QXmlStreamReader::Characters && !playFileReader.isWhitespace()){
-//            playFileDataTemp.append(playFileReader.text().toUtf8());
-//        }
-
-
-
-
-
-
-
 
 
 
@@ -1259,8 +1045,6 @@ void MainWindow::update_changeTableItem(int row ,int col,QList<Character>& list,
     loadBattleDetail();
 
 }
-
-
 void MainWindow::on_tableWidget_characterInfo_cellChanged(int row, int column)
 {
     update_changeTableItem(row,column,characterList,currentActCharacter,ui->tableWidget_characterInfo);
@@ -1269,5 +1053,201 @@ void MainWindow::on_tableWidget_characterInfo_cellChanged(int row, int column)
 void MainWindow::on_tableWidget_enemyInfo_cellChanged(int row, int column)
 {
     qDebug() << row;
-     update_changeTableItem(row,column,enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
+    update_changeTableItem(row,column,enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
+}
+
+
+//Expression解读通用方法
+int MainWindow::exprDecodingGeneralMethod(QString expression){
+    /*  注意：
+     *      如表达式 1d3-1d5+c 可以写为 1d3+1d5+(c-6) c为常数
+     *      因此在设计公式时请不要在骰子间写“-”号
+     *      即减去 减法得到的最小值 和 加法得到的最小值 的差值 (1-5与1+1的差值)
+     *      一般写法： [x1]d[t1]+[x2]d[t2]+...+[xn]d[tn]+const，其中const为常数,常数项可以为负
+     */
+
+    //定义正则表达式
+
+    QRegularExpression rx_getCoef("\\b\\d+d"); //从开头
+    QRegularExpression rx_getDiceType("d\\d+"); // mid1
+    QRegularExpression rx_getConst("(\\-|\\b)\\d+\\b"); //mid const的表现形式为 +或- 数字 边界
+    QRegularExpressionMatch tmpResult;
+
+    //定义伤害
+    int damage=0;
+    int noLimit=0;
+    int coef,diceType,minDamage,diceTimes=0;
+
+    //检查字符d的出现个数
+    for(int i=0;i<expression.length();i++){
+        if(expression.at(i)=="d"){
+            diceTimes +=1;
+        }
+    }
+
+    //检查下限是否为0
+    if(expression.at(0)=="~"){
+        expression.remove("~");
+        noLimit = 1;
+    }
+
+    //切割字符串为QStringlist
+    QStringList exprList = expression.split("+");
+    QStringList::iterator it;
+
+    //遍历整个list获得单个表达式的值
+    for(it=exprList.begin();it!=exprList.end();it++){
+
+        //每次循环都要清空
+        coef=0;diceType=0;minDamage=0;
+
+        tmpResult=rx_getCoef.match(*it);
+        if(tmpResult.hasMatch()){
+            coef = tmpResult.captured(0).remove("d").toInt();
+            qDebug()<<"骰子系数"<<tmpResult.captured(0);
+        }
+        tmpResult=rx_getDiceType.match(*it);
+        if(tmpResult.hasMatch()){
+            diceType = tmpResult.captured(0).mid(1).toInt();
+            qDebug()<<"骰子类型"<<diceType;
+        }
+        tmpResult=rx_getConst.match(*it);
+        if(tmpResult.hasMatch()){
+            minDamage = tmpResult.captured(0).remove("+").toInt();
+            qDebug()<<"固定伤害"<<tmpResult.captured(0);
+        }
+
+        damage +=Calculate().getRandomNumber(historyLineBuffer,diceType,coef,noLimit)+minDamage;
+        qDebug() <<"伤害更新为" <<damage;
+    }
+    return damage;
+}
+
+//数值显示器根据值显示数值
+void MainWindow::displayDiceNumber(int value){
+    ui->diceNumberDisplayer->setText(QString::number(value));
+    ui->diceNumberDisplayer->setAlignment(Qt::AlignHCenter); //对齐
+}
+
+
+//修改自定义公式
+void MainWindow::on_lineEdit_customExprInput_textChanged(const QString &arg)
+{
+    customExpression = arg;
+    qDebug() << arg;
+}
+
+//根据选中的列表中的属性自动更新显示信息
+void MainWindow::updateLabelCustomExprInfo(QTableWidgetItem *item){
+
+    if(item == nullptr){
+        qDebug() << "当前没有选中任何table中的物件";
+        return;
+    }
+
+    //获得表的指向
+    QTableWidget *table=item->tableWidget();
+
+    //更新属性名信息
+    ui->label_customTargetAttrName->setText(table->verticalHeaderItem(item->row())->text());
+
+    //更新属性值信息
+    customCheckAttr = 0;
+    customCheckAttr = item->text().toInt();
+    ui->label_customTargetAttrValue->setText(QString::number(customCheckAttr));
+
+}
+
+//自定义公式执行
+void MainWindow::on_pushButton_executeCustomExpr_clicked()
+{
+    int value = exprDecodingGeneralMethod(customExpression);
+    displayDiceNumber(value);
+    saySomething("自定义表达式结果："+QString::number(value),true);
+}
+
+void MainWindow::on_lineEdit_customExprInput_editingFinished()
+{
+     //在这里添加修正机制
+}
+
+void MainWindow::on_lineEdit_cunstomExprThreshold_textChanged(const QString &arg)
+{
+
+
+
+    customThreshold = arg.toInt();
+}
+
+void MainWindow::on_toolButton_custom_help_triggered(QAction *arg1)
+{
+    qDebug() << "chufa";
+}
+
+void MainWindow::on_toolButton_custom_help_clicked()
+{
+
+}
+
+void MainWindow::on_MainWindow_timerInitialize(){
+    ui->lcd_timeHMS->display("00:00:00");
+    this->timer = new QTimer(this);
+    this->timer->start(updateFreq); //更新频率
+    passedSeconds = 0.0f;
+    passedDays = 0;
+    connect(this->timer,SIGNAL(timeout()),this,SLOT(updateTimeInfo()));
+
+    //时间流速管理设置
+    double maxValueQS =floor(timeSpeed*20.0f);
+     double minValueQS =floor(timeSpeed*5.0f);
+    ui->hSlider_timeSpeedQS->setMaximum(maxValueQS);
+    ui->hSlider_timeSpeedQS->setMinimum(minValueQS);
+    ui->hSlider_timeSpeedQS->setSingleStep((minValueQS+maxValueQS)/5);
+
+}
+
+void MainWindow::updateTimeInfo(){
+        //从开始时间到现在的时间经过了多少秒
+        passedSeconds += updateFreq/1000.0f*timeSpeed*pauseSpeed;
+        if(passedSeconds>86400){
+            passedSeconds -= 86400.0f;
+            passedDays+=1;
+            ui->lcd_timeDays->display(passedDays);
+        }
+        this->ui->lcd_timeHMS->display(QTime(0,0,0).addSecs(floor(passedSeconds)).toString("hh:mm:ss"));
+}
+
+
+void MainWindow::on_dial_timerFreqAdjust_sliderReleased()
+{
+    updateFreq = ui->dial_timerFreqAdjust->value();
+    this->timer->stop();
+    this->timer->start(updateFreq);
+    qDebug() << updateFreq;
+}
+
+void MainWindow::on_hSlider_timeSpeedQS_sliderReleased()
+{
+    timeSpeed = ui->hSlider_timeSpeedQS->value()/10.0f;
+
+    //更新linedit
+    ui->lineEdit_timeSpeed->setText(QString::number(timeSpeed,'f',1));
+}
+
+void MainWindow::on_lineEdit_timeSpeed_textEdited(const QString &arg)
+{
+    timeSpeed = arg.toDouble();
+
+    //更新slider
+    ui->hSlider_timeSpeedQS->setValue(timeSpeed*10);
+}
+
+void MainWindow::on_pushButton_timerPause_clicked()
+{
+    pauseSpeed = 0.0f;
+}
+
+void MainWindow::on_pushButton_timerGo_clicked()
+{
+     pauseSpeed = 1.0f;
 }

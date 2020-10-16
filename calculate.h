@@ -13,8 +13,8 @@ class Calculate : public QObject
 
 public:
     explicit Calculate(QObject *parent = nullptr);
-    int getRandomNumber(QString &lineBuffer,int sides,int throwTimes);
-    bool judgeDiceResult(int number,int threshold);
+    int getRandomNumber(QString &lineBuffer,int sides,int throwTimes,int noLimit=0);
+    int judgeDiceResult(int number,int threshold);
 
 
 
