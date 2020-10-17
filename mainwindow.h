@@ -59,6 +59,7 @@ public:
     int currentActionTimes;
     QMap<QString,QString> skillDescMap;
     QMap<QString,QStringList> skillComboxInfo;
+    QStringList expressionQSList;
     QString customExpression;
     QStringList customExprQS;
     int diceThrowTimes = 1;
@@ -90,9 +91,11 @@ private slots:
 
     //时间类
     void updateTimeInfo();
+    void updateHSliderTimeQS();
 
     //自定义检定
     int exprDecodingGeneralMethod(QString);
+    QString exprCustomNormalizMethod(int);
     void displayDiceNumber(int);
 
     //战斗！
@@ -120,6 +123,7 @@ private slots:
     void updateLabelCustomExprInfo(QTableWidgetItem *);
     void updateLabelJuggInfo();
     void saySomething(QString words,bool update=false);
+    void updateExprQSBoard();
 
     //面板反向更新至数组中
     void update_tableItemDelete(QString key);
@@ -194,8 +198,6 @@ private slots:
     void on_pushButton_executeCustomExpr_clicked();
 
 
-    void on_lineEdit_customExprInput_editingFinished();
-
     void on_lineEdit_cunstomExprThreshold_textChanged(const QString &arg1);
 
     void on_toolButton_custom_help_triggered(QAction *arg1);
@@ -212,15 +214,25 @@ private slots:
 
     void on_pushButton_timerGo_clicked();
 
+
+
+    void on_pushButton_saySomething_clicked();
+
+    void on_tableWidget_checkTable_cellClicked(int row);
+
+    void on_lineEdit_customExprInput_textEdited(const QString &arg1);
+
+
 private:
     Ui::MainWindow *ui;
 
     //时间类
     QTimer *timer;
     int updateFreq=1000;
-    double passedSeconds;
-    int passedDays;
+    double passedSeconds=0.0f;
+    int passedDays=0;
     double pauseSpeed=1.0f;
+    QTime totalTime = QTime(0,0,0);
 
 signals:
     void historyUpdate(QString &infoBuffer);

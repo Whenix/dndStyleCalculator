@@ -8,10 +8,10 @@
 MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    on_MainWindow_timerInitialize();
+
     ui->lineEdit_cunstomExprThreshold->setValidator(new QRegExpValidator(QRegExp("[0-9]+$")));
     ui->lineEdit_timeSpeed->setValidator(new QRegExpValidator(QRegExp("[0-9]*[.][0-9]*")));
-    ui->lineEdit_customExprInput->setValidator(new QRegExpValidator(QRegExp("([\\+\\-d\\~]|[0-9])+$")));
+    ui->lineEdit_customExprInput->setValidator(new QRegExpValidator(QRegExp("([\\+\\-dt\\~]|[0-9])+$")));
     // connect(this,SIGNAL(historyUpdate(QString)),ui->textBrowser_history,SLOT(updateHistoryBoard()));
 
     //绑定：点击玩家信息表 -> 自定义公式区域中的信息更新
@@ -389,7 +389,9 @@ void MainWindow::on_action_loadFile_triggered()
     playFilePath = QFileDialog::getOpenFileName(this,"选择剧本文件","","所有文件(*.*) ;; XML文件 (*.xml)");
     ui->textBrowser_history->clear();
 
+
     setPlayFileXML();
+    on_MainWindow_timerInitialize();
 
 }
 
@@ -450,6 +452,7 @@ void MainWindow::on_pushButton_toRandomCharacter_clicked()
 
 //敌人选择和跳转
 
+//跳转到上一个敌人
 void MainWindow::on_pushButton_toPreEnemy_clicked()
 {
     if(enemyList.length()==0) return;
@@ -462,6 +465,7 @@ void MainWindow::on_pushButton_toPreEnemy_clicked()
 
 }
 
+//跳转到下一个敌人
 void MainWindow::on_pushButton_toNextEnemy_clicked()
 {
     if(enemyList.length()==0) return;
@@ -474,10 +478,7 @@ void MainWindow::on_pushButton_toNextEnemy_clicked()
 }
 
 
-
-
-
-//显示和增加角色的记录
+//显示角色的记录
 void MainWindow::on_pushButton_showCharacterRecords_clicked()
 {
     qDebug() <<characterList[currentActCharacter].records.length();
@@ -488,6 +489,7 @@ void MainWindow::on_pushButton_showCharacterRecords_clicked()
 
 }
 
+//增加角色的一条记录
 void MainWindow::on_pushButton_addCharacterRecord_clicked()
 {
     //获得输入元素
@@ -516,6 +518,8 @@ void MainWindow::on_pushButton_deleteTableHeader_clicked()
     ui->pushButton_deleteTableHeader->setEnabled(false);
 
 }
+
+//按钮 增加新条目
 void MainWindow::on_pushButton_addTableItem_clicked()
 {
     //获得输入元素
@@ -588,9 +592,9 @@ void MainWindow::on_tableWidget_enemyInfo_itemClicked(QTableWidgetItem *item)
 void MainWindow::updateInfoBoard(QList<Character>& list,int index,QTableWidget *table){
     table->clear();
 
-
     if(list.length()==0){
-        qDebug() << "敌对单位信息列表写入失败";
+
+        qDebug() << "单位信息列表写入失败";
         return;
     }
 
@@ -629,6 +633,7 @@ void MainWindow::update_tableItemDelete(QString key){
 
     }
 }
+
 //反向更新敌方单位信息的table
 void MainWindow::update_enemyTableItemDelete(QString key){
     QMap<QString, QVariant>::iterator it;
@@ -670,8 +675,7 @@ void MainWindow::updateLabelBoard(){
 
 }
 
-
-
+//读取游戏
 void MainWindow::setPlayFileXML(){
 
     QVector<QString> headerBuffer;
@@ -691,72 +695,66 @@ void MainWindow::setPlayFileXML(){
     QString characterSectionName;
     Character characterBuffer;
     Character enemyBuffer;
-    //    QVector<QString> headerBuffer;
-    //    QVector<QVariant> valueBuffer;
-
 
     QXmlStreamReader playFileReader;
     QXmlStreamAttributes streamAttr;
     playFileReader.setDevice(&playFile);
-    qDebug() << playFilePath ;
+    qDebug() <<"读取的文件路径："<< playFilePath ;
+
     while(!playFileReader.atEnd()){
 
-        QXmlStreamReader::TokenType type = playFileReader.readNext();
         playFileReader.readNext();
 
         streamAttr = playFileReader.attributes();
 
-        if (type != QXmlStreamReader::Characters || playFileReader.isWhitespace())
-        {
-            continue;
-            qDebug() << "skipped";
-        }
 
+
+        ////////////////玩家table部分///////////////////////////////////////////////
         //当这一小节存在ID值时，可认为要写入的玩家的档案序号为该值
         if((playFileReader.name()=="character"||playFileReader.name()=="header") && streamAttr.hasAttribute("id")){
             characterIndex = streamAttr.value("id").toInt();
             qDebug() << "读取到id信息";
         }
         else if(playFileReader.isEndElement() && playFileReader.name()  == "character"){
-
+            qDebug() << "尝试将读取内容写入到玩家table中";
             //根据位置配对插入
             for(int i =0;i<headerBuffer.length();i++){
                 characterBuffer.property.insert(headerBuffer[i],valueBuffer[i]);
             }
 
             characterBuffer.index = characterIndex;
-
             characterList.append(characterBuffer);
-            //qDebug() << "检查list中是否包含recrod" << characterList.last().records.length();
 
             //把各个具体的人的buffer清空
             headerBuffer.clear();
             valueBuffer.clear();
             characterBuffer.property.clear();
             characterBuffer.records.clear();
+
+            qDebug() << "已经成功读取了一名玩家的所有档案";
         }
         //读到档案记录
         else if(playFileReader.name() == "record"){
             characterBuffer.records.append( playFileReader.readElementText());
-            qDebug() <<  "record写入" << characterBuffer.records.last();
-            qDebug() <<  "record确认" << characterBuffer.records.length();
+            qDebug() << "成功读取了玩家的记录";
+
         }
         //写入数据 header
         else if(playFileReader.name() == "h"){
             headerBuffer.append(playFileReader.readElementText());
-            qDebug() <<  "信息写入" << headerBuffer.last();
+
         }
         //写入数据 character value
         else if(playFileReader.name() == "c"){
             valueBuffer.append(playFileReader.readElementText());
-            qDebug() <<  "信息写入" << valueBuffer.last();
+
         }
 
         ////////////////////////////敌人table部分/////////////////////////////// else if 还没断
         //读到enemy的id
         else if((playFileReader.name()=="enemy"|| playFileReader.name()  == "eheader") && streamAttr.hasAttribute("id")){
             enemyIndex = streamAttr.value("id").toInt();
-            qDebug() << "读取到敌方id信息";
+
         }
         //结束enemy的e属性区域的读取 上载
         else if(playFileReader.isEndElement() && (playFileReader.name()  == "enemy")){
@@ -783,12 +781,10 @@ void MainWindow::setPlayFileXML(){
         //写入数据 header
         else if(playFileReader.name() == "eh"){
             eHeaderBuffer.append(playFileReader.readElementText());
-            qDebug() <<  "信息写入" << eHeaderBuffer.last();
         }
-        //写入数据 character value
+        //写入数据  value
         else if(playFileReader.name() == "ec"){
             eValueBuffer.append(playFileReader.readElementText());
-            qDebug() <<  "信息写入" << eValueBuffer.last();
         }
 
         //写入历史记录
@@ -796,7 +792,25 @@ void MainWindow::setPlayFileXML(){
             totalPlayTimes = playFileReader.attributes().value("times").toString();
             historyInfoBuffer.append(playFileReader.readElementText());
             historyAll.append(historyInfoBuffer.join("|"));
-            qDebug() << "读取历史游戏记录" ;
+        }
+
+        //载入游戏设置 时间
+        else if (playFileReader.name() == "timeInfo"){
+            QStringList timeInfo = playFileReader.readElementText().split(",");
+
+            if(timeInfo.length()<3){
+                qDebug() << timeInfo.length();
+                qDebug() << "剧本时间格式设置错误";return;
+            }
+            this->passedDays = timeInfo.at(0).toInt();
+            this->passedSeconds=timeInfo.at(1).toDouble();
+            this->timeSpeed = timeInfo.at(2).toInt();
+        }
+
+        //载入游戏设置 快捷检定公式
+        else if(playFileReader.name() == "expression"){
+            expressionQSList.append(playFileReader.readElementText());
+            qDebug() << "读取到了" << QString::number( expressionQSList.length()) << "条公式";
         }
     }
 
@@ -806,10 +820,15 @@ void MainWindow::setPlayFileXML(){
     //发个更新信号呗
     emit updateInfoBoard(characterList,currentActCharacter,ui->tableWidget_characterInfo);
     emit updateInfoBoard(enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
+
     emit updateLabelBoard();
+    emit updateExprQSBoard();
     emit loadBattleDetail();
     emit setSwitchEnemySlider();
+
+    emit updateTimeInfo();
     emit updateLastPlayHistoryBoard();
+
 
     //历史游戏记录次数+1
     totalPlayTimes = QString::number(totalPlayTimes.toInt()+1);
@@ -818,9 +837,9 @@ void MainWindow::setPlayFileXML(){
     ui->pushButton_addTableItem->setEnabled(true);
     ui->tableWidget_characterInfo->verticalHeader()->setVisible(true);
 
-
 }
 
+//保存游戏
 void MainWindow::savePlayFileXML(){
     if(playFilePath == nullptr){
         playFilePath = "newPlayFile.xml";
@@ -844,6 +863,20 @@ void MainWindow::savePlayFileXML(){
 
     writer.writeStartDocument();
     writer.writeStartElement("root");
+
+    //保存游戏设置
+    writer.writeStartElement("settings");
+    //保存时间
+    writer.writeTextElement("timeInfo", QString::number(passedDays)+","+QString::number(passedSeconds)+","+QString::number(timeSpeed));
+
+    //保存公式快速选择列表
+    for(int i=0;i<expressionQSList.length();i++){
+        writer.writeTextElement("expression",expressionQSList.at(i));
+    }
+
+    writer.writeEndElement(); //settings
+
+
     for(int n=0;n<characterList.length();n++){
 
         qDebug() << "共有" << characterList.length() << "号玩家";
@@ -858,7 +891,7 @@ void MainWindow::savePlayFileXML(){
             qDebug() << "写入" << ith.key();
         }
 
-        writer.writeEndElement();
+        writer.writeEndElement(); //header
 
         //写入character表
         writer.writeStartElement("character");
@@ -882,6 +915,7 @@ void MainWindow::savePlayFileXML(){
 
     }
 
+    //保存敌方单位信息
     for(int n=0;n<enemyList.length();n++){
 
         qDebug() << "共有" << enemyList.length() << "个敌人单位信息";
@@ -927,8 +961,10 @@ void MainWindow::savePlayFileXML(){
         writer.writeStartElement("history");
         writer.writeAttribute("times",QString::number(i));
         writer.writeCharacters("这是第"+QString::number(i)+"次游玩记录|");
-        writer.writeCharacters(historyAll.at(i));
-        writer.writeCharacters("|");
+        if(historyAll.at(i) != "\n"||historyAll.at(i) != "" ){
+            writer.writeCharacters(historyAll.at(i));
+            writer.writeCharacters("|");
+        }
         writer.writeEndElement(); //history
     }
 
@@ -943,12 +979,76 @@ void MainWindow::savePlayFileXML(){
 
 }
 
+//更新快速选择公式列表的信息
+void MainWindow::updateExprQSBoard(){
 
+    if(expressionQSList.length()==0){
+        qDebug() << "快速公式选择列表加载失败";
+    }
 
-/////////////////////////Protect My Dog Eye///////////////////////////////
+    QStringList buffer;
+    //设置列表行数
+    ui->tableWidget_checkTable->setRowCount(expressionQSList.length());
 
+    //遍历整个list
+    for(int i =0;i<expressionQSList.length();i++){
+        //对于list中的单个元素，再将其拆分
+        buffer =expressionQSList.at(i).split(";");
 
+        ui->tableWidget_checkTable->setItem(i,0,new QTableWidgetItem(buffer.at(0))); //公式描述
+        ui->tableWidget_checkTable->setItem(i,1,new QTableWidgetItem(buffer.at(1))); //目标属性
+        ui->tableWidget_checkTable->setItem(i,2,new QTableWidgetItem(buffer.at(2))); //表达式
+        ui->tableWidget_checkTable->setItem(i,3,new QTableWidgetItem(buffer.at(3))); //阈值
+    }
 
+}
+
+//处理未翻译的含t公式的方法
+QString MainWindow::exprCustomNormalizMethod(int row){
+
+    //获得未翻译的含t表达式
+    QString originExpr = ui->tableWidget_checkTable->item(row,2)->text();
+
+    if(!originExpr.contains("t")){
+        qDebug() << "这不含t";
+        return originExpr;
+    }
+
+    //定义正则表达式
+    QRegularExpression rx_tReplace;
+
+    //获得目标属性的切分的列表，比如{力量,智力,敏捷}={力量},{智力},{敏捷}
+    QStringList attrStringList = ui->tableWidget_checkTable->item(row,1)->text().split(",");
+
+    //得到t值的个数，比如在上述举例中只可能有t1,t2,t3 而不可能有t4
+    int variableNum =attrStringList.length();
+
+    //tn代表的值
+    QString value;
+
+    //以不同的正则表达式多次遍历相同的string，分别找到原值并替换
+    for(int i =0;i<variableNum;i++){
+        if(variableNum == 1){
+            rx_tReplace.setPattern("t");
+        }
+        else{
+            rx_tReplace.setPattern("t"+QString::number(i+1));
+        }
+
+        //根据键名在当前玩家的characterlist中寻找相应的值替换，找不到就归0
+        if( characterList[currentActCharacter].property.contains(attrStringList.at(i)) ){
+            value =  characterList[currentActCharacter].property.find(attrStringList.at(i)).value().toString();
+        }
+        else{
+            value = "0";
+        }
+
+        originExpr.replace(rx_tReplace,value);
+    }
+    return originExpr;
+}
+
+//更新历史记录面板
 void MainWindow::saySomething(QString words,bool updateImmediately){
 
     historyLineBuffer += words;
@@ -958,22 +1058,19 @@ void MainWindow::saySomething(QString words,bool updateImmediately){
     }
 }
 
+//更新历史记录面板
 void MainWindow:: updateHistoryBoard(QString &infoBuffer){
-    //   QList<QString>::Iterator it = infoBuffer.begin(),itend = infoBuffer.end();
-    //   for (int i=0;it != itend; it++,i++){
-    //        ui->textBrowser_history->append(infoBuffer.at(i));
-    //    }
-
-    //更新历史记录面板，并清空
     historyInfoBuffer.append(infoBuffer);
     ui->textBrowser_history->append(infoBuffer);
+
+    //清空
     infoBuffer.clear();
 }
 
+//加载上次游玩的历史信息
 void MainWindow::updateLastPlayHistoryBoard(){
 
     //是一个list 先join 然后再|分割 然后再逐个输出
-
     historyInfoBuffer = historyInfoBuffer.join("|").split("|");
     for(int i=0;i<historyInfoBuffer.length();i++){
         ui->textBrowser_history->append(historyInfoBuffer.at(i));
@@ -981,12 +1078,8 @@ void MainWindow::updateLastPlayHistoryBoard(){
 
     //清空
     historyInfoBuffer.clear();
-
 }
 
-
-
-/////////////////////////Protect My Dog Eye///////////////////////////////
 //更新判定面板的信息
 void MainWindow::updateLabelJuggInfo(){
     if(!needCheck) {
@@ -1017,15 +1110,7 @@ void MainWindow::updateLabelJuggInfo(){
 
 }
 
-
-
-
-//////////////////////////////Protect My Dog Eye///////////////////////////////
-
-
-
-
-
+//修改玩家角色信息
 void MainWindow::update_changeTableItem(int row ,int col,QList<Character>& list,int index,QTableWidget* table){
     if(row > table->rowCount() || row >= list[index].property.size()){
         qDebug() <<"企图修改不存在的数据";
@@ -1045,17 +1130,18 @@ void MainWindow::update_changeTableItem(int row ,int col,QList<Character>& list,
     loadBattleDetail();
 
 }
+
+//当玩家信息被修改时
 void MainWindow::on_tableWidget_characterInfo_cellChanged(int row, int column)
 {
     update_changeTableItem(row,column,characterList,currentActCharacter,ui->tableWidget_characterInfo);
 }
 
+//修改敌人信息
 void MainWindow::on_tableWidget_enemyInfo_cellChanged(int row, int column)
 {
-    qDebug() << row;
     update_changeTableItem(row,column,enemyList,currentActEnemy,ui->tableWidget_enemyInfo);
 }
-
 
 //Expression解读通用方法
 int MainWindow::exprDecodingGeneralMethod(QString expression){
@@ -1067,7 +1153,6 @@ int MainWindow::exprDecodingGeneralMethod(QString expression){
      */
 
     //定义正则表达式
-
     QRegularExpression rx_getCoef("\\b\\d+d"); //从开头
     QRegularExpression rx_getDiceType("d\\d+"); // mid1
     QRegularExpression rx_getConst("(\\-|\\b)\\d+\\b"); //mid const的表现形式为 +或- 数字 边界
@@ -1116,8 +1201,12 @@ int MainWindow::exprDecodingGeneralMethod(QString expression){
             minDamage = tmpResult.captured(0).remove("+").toInt();
             qDebug()<<"固定伤害"<<tmpResult.captured(0);
         }
-
-        damage +=Calculate().getRandomNumber(historyLineBuffer,diceType,coef,noLimit)+minDamage;
+        if(diceType != 0 ){
+            damage +=Calculate().getRandomNumber(historyLineBuffer,diceType,coef,noLimit)+minDamage;
+        }
+        else{
+            damage += minDamage;
+        }
         qDebug() <<"伤害更新为" <<damage;
     }
     return damage;
@@ -1134,7 +1223,6 @@ void MainWindow::displayDiceNumber(int value){
 void MainWindow::on_lineEdit_customExprInput_textChanged(const QString &arg)
 {
     customExpression = arg;
-    qDebug() << arg;
 }
 
 //根据选中的列表中的属性自动更新显示信息
@@ -1166,66 +1254,70 @@ void MainWindow::on_pushButton_executeCustomExpr_clicked()
     saySomething("自定义表达式结果："+QString::number(value),true);
 }
 
-void MainWindow::on_lineEdit_customExprInput_editingFinished()
-{
-     //在这里添加修正机制
-}
-
+//手动修改阈值
 void MainWindow::on_lineEdit_cunstomExprThreshold_textChanged(const QString &arg)
 {
-
-
-
     customThreshold = arg.toInt();
 }
 
+//todo
 void MainWindow::on_toolButton_custom_help_triggered(QAction *arg1)
 {
-    qDebug() << "chufa";
+
 }
 
+//todo
 void MainWindow::on_toolButton_custom_help_clicked()
 {
 
 }
 
+//Init - 时间列表
 void MainWindow::on_MainWindow_timerInitialize(){
     ui->lcd_timeHMS->display("00:00:00");
+    ui->lcd_timeDays->display(passedDays);
+    ui->lineEdit_timeSpeed->setText(QString::number(timeSpeed));
     this->timer = new QTimer(this);
     this->timer->start(updateFreq); //更新频率
-    passedSeconds = 0.0f;
-    passedDays = 0;
+
     connect(this->timer,SIGNAL(timeout()),this,SLOT(updateTimeInfo()));
 
     //时间流速管理设置
+    connect(ui->lineEdit_timeSpeed,SIGNAL(returnPressed()),this,SLOT(updateHSliderTimeQS()));
+    updateHSliderTimeQS();
+
+}
+void MainWindow:: updateHSliderTimeQS(){
     double maxValueQS =floor(timeSpeed*20.0f);
-     double minValueQS =floor(timeSpeed*5.0f);
+    double minValueQS =floor(timeSpeed*5.0f);
     ui->hSlider_timeSpeedQS->setMaximum(maxValueQS);
     ui->hSlider_timeSpeedQS->setMinimum(minValueQS);
     ui->hSlider_timeSpeedQS->setSingleStep((minValueQS+maxValueQS)/5);
 
 }
 
+//更新并显示时间信息
 void MainWindow::updateTimeInfo(){
-        //从开始时间到现在的时间经过了多少秒
-        passedSeconds += updateFreq/1000.0f*timeSpeed*pauseSpeed;
-        if(passedSeconds>86400){
-            passedSeconds -= 86400.0f;
-            passedDays+=1;
-            ui->lcd_timeDays->display(passedDays);
-        }
-        this->ui->lcd_timeHMS->display(QTime(0,0,0).addSecs(floor(passedSeconds)).toString("hh:mm:ss"));
+    //从开始时间到现在的时间经过了多少秒
+    passedSeconds += updateFreq/1000.0f*timeSpeed*pauseSpeed;
+    if(passedSeconds>86400){
+        passedSeconds -= 86400.0f;
+        passedDays+=1;
+        ui->lcd_timeDays->display(passedDays);
+    }
+    this->ui->lcd_timeHMS->display(totalTime.addSecs(floor(passedSeconds)).toString("hh:mm:ss"));
+
 }
 
-
+//计时器刷新频率
 void MainWindow::on_dial_timerFreqAdjust_sliderReleased()
 {
     updateFreq = ui->dial_timerFreqAdjust->value();
     this->timer->stop();
     this->timer->start(updateFreq);
-    qDebug() << updateFreq;
 }
 
+//滑动调节时间流速
 void MainWindow::on_hSlider_timeSpeedQS_sliderReleased()
 {
     timeSpeed = ui->hSlider_timeSpeedQS->value()/10.0f;
@@ -1234,6 +1326,7 @@ void MainWindow::on_hSlider_timeSpeedQS_sliderReleased()
     ui->lineEdit_timeSpeed->setText(QString::number(timeSpeed,'f',1));
 }
 
+//lineEdit手动输入时间流速
 void MainWindow::on_lineEdit_timeSpeed_textEdited(const QString &arg)
 {
     timeSpeed = arg.toDouble();
@@ -1242,12 +1335,53 @@ void MainWindow::on_lineEdit_timeSpeed_textEdited(const QString &arg)
     ui->hSlider_timeSpeedQS->setValue(timeSpeed*10);
 }
 
+//计时器暂停
 void MainWindow::on_pushButton_timerPause_clicked()
 {
     pauseSpeed = 0.0f;
 }
 
+//计时器继续
 void MainWindow::on_pushButton_timerGo_clicked()
 {
-     pauseSpeed = 1.0f;
+    pauseSpeed = 1.0f;
 }
+
+//输入发言信息
+void MainWindow::on_pushButton_saySomething_clicked()
+{
+    //获得输入元素
+    bool inputDone;
+    QString words = QInputDialog::getText(this,"输入发言记录","",QLineEdit::Normal,"",&inputDone);
+    if(!inputDone) return;
+
+    saySomething(words,true);
+}
+
+
+
+//当玩家点击快速选择公式表
+void MainWindow::on_tableWidget_checkTable_cellClicked(int row)
+{
+    if(ui->tableWidget_checkTable->item(row,0) == NULL){
+        return ;
+    }
+    //调用处理方法
+    customExpression =  exprCustomNormalizMethod(row);
+
+    int tmp = ui->tableWidget_checkTable->item(row,3)->text().toInt();
+    if(tmp != -1){
+        customThreshold = tmp;
+
+    }
+    ui->lineEdit_cunstomExprThreshold->setText(QString::number(customThreshold));
+    ui->lineEdit_customExprInput->setText(customExpression);
+
+
+}
+
+void MainWindow::on_lineEdit_customExprInput_textEdited(const QString &arg1)
+{
+
+}
+

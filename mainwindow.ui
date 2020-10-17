@@ -376,7 +376,7 @@ p, li { white-space: pre-wrap; }
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QPushButton" name="pushButton">
+         <widget class="QPushButton" name="pushButton_saySomething">
           <property name="text">
            <string>说点啥</string>
           </property>
@@ -516,7 +516,7 @@ p, li { white-space: pre-wrap; }
         <bool>true</bool>
        </attribute>
        <attribute name="verticalHeaderVisible">
-        <bool>true</bool>
+        <bool>false</bool>
        </attribute>
        <attribute name="verticalHeaderMinimumSectionSize">
         <number>28</number>
@@ -1156,7 +1156,7 @@ p, li { white-space: pre-wrap; }
         <item>
          <widget class="QPushButton" name="pushButton_5">
           <property name="text">
-           <string>撤销最后一次操作(开发中)</string>
+           <string>应对提示</string>
           </property>
          </widget>
         </item>
@@ -1443,16 +1443,6 @@ p, li { white-space: pre-wrap; }
       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
      </property>
     </widget>
-    <widget class="QComboBox" name="comboBox_customExprQS">
-     <property name="geometry">
-      <rect>
-       <x>60</x>
-       <y>60</y>
-       <width>291</width>
-       <height>21</height>
-      </rect>
-     </property>
-    </widget>
     <widget class="QToolButton" name="toolButton_custom_help">
      <property name="geometry">
       <rect>
@@ -1497,34 +1487,13 @@ p, li { white-space: pre-wrap; }
       </rect>
      </property>
     </widget>
-    <widget class="QLabel" name="label_historyExprQS_hint">
-     <property name="geometry">
-      <rect>
-       <x>0</x>
-       <y>60</y>
-       <width>61</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>9</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>快速选择</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-    </widget>
     <widget class="QPushButton" name="pushButton_executeCustomExpr">
      <property name="geometry">
       <rect>
        <x>200</x>
-       <y>90</y>
+       <y>60</y>
        <width>151</width>
-       <height>111</height>
+       <height>141</height>
       </rect>
      </property>
      <property name="font">
@@ -1582,8 +1551,8 @@ pushButton_executeCustomExpr:pressed
     <widget class="QLabel" name="label_customTargetAttrName">
      <property name="geometry">
       <rect>
-       <x>70</x>
-       <y>110</y>
+       <x>50</x>
+       <y>80</y>
        <width>121</width>
        <height>31</height>
       </rect>
@@ -1603,7 +1572,7 @@ pushButton_executeCustomExpr:pressed
     <widget class="QLabel" name="label_customTargetAttrValue">
      <property name="geometry">
       <rect>
-       <x>70</x>
+       <x>50</x>
        <y>150</y>
        <width>121</width>
        <height>31</height>
@@ -1630,6 +1599,9 @@ pushButton_executeCustomExpr:pressed
        <height>191</height>
       </rect>
      </property>
+     <property name="mouseTracking">
+      <bool>false</bool>
+     </property>
      <property name="verticalScrollBarPolicy">
       <enum>Qt::ScrollBarAlwaysOn</enum>
      </property>
@@ -1653,7 +1625,12 @@ pushButton_executeCustomExpr:pressed
      </row>
      <column>
       <property name="text">
-       <string>名称</string>
+       <string>公式名</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>检定的目标属性</string>
       </property>
      </column>
      <column>
